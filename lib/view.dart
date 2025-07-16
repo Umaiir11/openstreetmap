@@ -68,13 +68,25 @@ class _OpenMapViewState extends State<OpenMapView> with TickerProviderStateMixin
               FlutterMap(
                 mapController: controller.mapController,
                 options: MapOptions(
+
+
+
+
+
                   initialCenter: initialCenter.latitude == 0.0 && initialCenter.longitude == 0.0
                       ? const LatLng(20.0, 0.0)
                       : initialCenter,
                   initialZoom: initialCenter.latitude == 0.0 ? 2.0 : 16.0,
                   maxZoom: 20.0,
                   minZoom: 2.0,
+                  onLongPress: (tapPosition, latlng) {
+                    controller.clearDroppedPin();
+                  },
                   onTap: (tapPosition, latlng) {
+
+
+                    controller.dropPinAt(latlng); // Drop pin logic
+                    controller.selectedLocation.value = null; // Optional: clear search location
                     controller.updateSelectedLocation(latlng);
                   },
                 ),
@@ -94,10 +106,10 @@ class _OpenMapViewState extends State<OpenMapView> with TickerProviderStateMixin
                           point: controller.currentLocation.value,
                           width: 60,
                           height: 60,
-                          child: _buildCurrentLocationMarker(), // Your existing marker widget
+                          child: _buildCurrentLocationMarker(),
                         ),
 
-                      // 🔴 Selected Location Marker
+                      // 🔴 Selected Location from Search
                       if (controller.selectedLocation.value != null)
                         Marker(
                           point: controller.selectedLocation.value!,
@@ -105,8 +117,18 @@ class _OpenMapViewState extends State<OpenMapView> with TickerProviderStateMixin
                           height: 60,
                           child: _buildSelectedLocationMarker(),
                         ),
+
+                      // 🟡 Dropped Pin on Map Tap
+                      if (controller.pinDropLocation.value != null)
+                        Marker(
+                          point: controller.pinDropLocation.value!,
+                          width: 60,
+                          height: 60,
+                          child: _buildDroppedPinMarker(),
+                        ),
                     ],
                   ),
+
                 ],
               ),
 
@@ -241,27 +263,37 @@ class _OpenMapViewState extends State<OpenMapView> with TickerProviderStateMixin
       ),
     );
   }
-
-  Widget _buildBottomControlItem({required IconData icon, required String label, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.black87, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
+  Widget _buildDroppedPinMarker() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.orange.shade600,
+              boxShadow: [BoxShadow(color: Colors.orange.shade300.withOpacity(0.6), blurRadius: 20, spreadRadius: 8)],
             ),
-          ],
-        ),
-      ),
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(color: Colors.orange.shade600, width: 3),
+              ),
+              child: Icon(Icons.pin_drop_rounded, color: Colors.orange.shade600, size: 24),
+            ),
+          ),
+        );
+      },
     );
   }
+
 
   void _zoomIn() {
     controller.mapController.move(controller.mapController.center, controller.mapController.zoom + 1);

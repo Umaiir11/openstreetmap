@@ -1,5 +1,6 @@
 // File: map_controller.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
@@ -19,6 +20,29 @@ class MapControllerX extends GetxController {
     pinDropLocation.value = location;
   }
 
+  void clearDroppedPin() {
+    pinDropLocation.value = null;
+    selectedLocation.value = null;
+    Get.snackbar(
+      '📍 Pin Removed',
+      'Dropped pin has been cleared from map.',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.white,
+      colorText: Colors.black,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: 12,
+      padding: const EdgeInsets.all(16),
+      boxShadows: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+      icon: const Icon(Icons.location_off_rounded, color: Colors.redAccent),
+      duration: const Duration(seconds: 2),
+    );
+  }
 
 
   @override
@@ -36,6 +60,9 @@ class MapControllerX extends GetxController {
         _moveTo(latLng, 15.0);
       }
     } catch (e) {
+
+
+
       Get.snackbar('Location Error', 'Failed to get current location');
     }
   }
@@ -45,6 +72,7 @@ class MapControllerX extends GetxController {
       await Geolocator.openLocationSettings();
       return null;
     }
+
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
