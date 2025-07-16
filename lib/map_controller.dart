@@ -1,3 +1,4 @@
+// File: map_controller.dart
 import 'dart:convert';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,10 +10,16 @@ import 'location_model.dart';
 
 class MapControllerX extends GetxController {
   final MapController mapController = MapController();
-
   final Rx<LatLng> currentLocation = LatLng(0.0, 0.0).obs;
   final Rx<LatLng?> selectedLocation = Rx<LatLng?>(null);
   final RxList<LocationModel> searchResults = <LocationModel>[].obs;
+  final Rx<LatLng?> pinDropLocation = Rx<LatLng?>(null);
+
+  void dropPinAt(LatLng location) {
+    pinDropLocation.value = location;
+  }
+
+
 
   @override
   void onInit() {
@@ -22,20 +29,19 @@ class MapControllerX extends GetxController {
 
   Future<void> fetchCurrentLocation() async {
     try {
-      final Position? position = await _determinePosition();
-      if (position == null) return;
-
-      final latLng = LatLng(position.latitude, position.longitude);
-      currentLocation(latLng); // More efficient than `.value =`
-      _moveTo(latLng, 15.0);
+      final position = await _determinePosition();
+      if (position != null) {
+        final latLng = LatLng(position.latitude, position.longitude);
+        currentLocation(latLng);
+        _moveTo(latLng, 15.0);
+      }
     } catch (e) {
-      print('📍 Location error: $e');
+      Get.snackbar('Location Error', 'Failed to get current location');
     }
   }
 
   Future<Position?> _determinePosition() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
+    if (!await Geolocator.isLocationServiceEnabled()) {
       await Geolocator.openLocationSettings();
       return null;
     }
@@ -45,57 +51,53 @@ class MapControllerX extends GetxController {
       permission = await Geolocator.requestPermission();
     }
 
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return null;
     }
-
     return Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 
   void updateSelectedLocation(LatLng location) {
     selectedLocation(location);
+    _moveTo(location, 16.0);
   }
 
   Future<void> searchLocation(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
+    if (query.trim().isEmpty) return;
 
     final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/search?q=$trimmed&format=json&addressdetails=1&limit=10',
-    );
+        'https://nominatim.openstreetmap.org/search?q=$query&format=json&addressdetails=1&limit=10');
 
     try {
       final res = await http.get(url, headers: {
-        'User-Agent': 'FlutterOpenStreetMapApp/1.0 (your_email@example.com)',
+        'User-Agent': 'FlutterOpenStreetMapApp/1.0 (abc_email@example.com)',
       });
 
       if (res.statusCode == 200) {
         final List data = json.decode(res.body);
         final results = data.map((e) => LocationModel.fromJson(e)).toList();
-
         searchResults.assignAll(results);
 
         if (results.isNotEmpty) {
-          setLocationFromSearch(results.first);
+          updateSelectedLocation(
+            LatLng(results.first.latitude, results.first.longitude),
+          );
         } else {
-          Get.snackbar('Not Found', 'No location found for "$query"',
-              snackPosition: SnackPosition.TOP);
+          Get.snackbar('No Results', 'No location found for "$query"');
         }
       } else {
-        print('❌ HTTP ${res.statusCode} during search');
+        Get.snackbar('Error', 'Failed to search location.');
       }
     } catch (e) {
-      print('❌ Exception during search: $e');
+      Get.snackbar('Exception', 'Something went wrong during search.');
     }
-  }
-
-  void setLocationFromSearch(LocationModel loc) {
-    final latLng = LatLng(loc.latitude, loc.longitude);
-    selectedLocation(latLng);
-    _moveTo(latLng, 16.0);
   }
 
   void _moveTo(LatLng latLng, double zoom) {
     mapController.move(latLng, zoom);
   }
 }
+
+
+
